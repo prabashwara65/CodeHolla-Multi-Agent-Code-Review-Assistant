@@ -1,0 +1,227 @@
+# ============================================
+# Python - Virtual Environment & Cache
+# ============================================
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# ============================================
+# Project Specific - Logs & Reports
+# ============================================
+
+# Log files (keep structure but ignore content)
+logs/
+*.log
+*.jsonl
+mas.log
+trace_*.jsonl
+
+# Report files
+reports/
+*.json
+!requirements.json  # Keep requirements if needed
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# ============================================
+# IDE & Editor Files
+# ============================================
+
+# Visual Studio Code
+.vscode/
+.history/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+*.iws
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.vim
+*.vimrc
+*.viminfo
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+
+# ============================================
+# OS Generated Files
+# ============================================
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# Linux
+.directory
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================
+# Security & Secrets
+# ============================================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Secrets and keys
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+credentials/
+*.secret
+
+# ============================================
+# Testing & Debugging
+# ============================================
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Debug logs
+debug/
+*.pdb
+
+# ============================================
+# Documentation (keep structure, ignore generated)
+# ============================================
+
+# Generated documentation
+docs/_build/
+docs/api/
+site/
+
+# ============================================
+# Model files (too large for git)
+# ============================================
+
+# Ollama models are stored elsewhere, but ignore if downloaded locally
+*.gguf
+*.bin
+models/
+
+# ============================================
+# Keep these files (exceptions)
+# ============================================
+
+# Allow sample files
+!sample_code/*.py
+!sample_code/README.md
+
+# Allow requirements
+!requirements.txt
+!requirements-dev.txt
+
+# Keep example reports
+!reports/example_report.json
