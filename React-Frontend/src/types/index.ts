@@ -1,3 +1,5 @@
+// src/types/index.ts
+
 export interface Finding {
   category: string;
   line: number;
