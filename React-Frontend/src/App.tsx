@@ -1,76 +1,117 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { api } from './services/api';
+import axios from 'axios';
 import type { ReviewResponse, Finding } from './types';
 
-type TabType = 'results' | 'plan';
+type TabType = 'editor' | 'results' | 'plan';
 
-interface LogEntry {
+interface LogMessage {
   timestamp: string;
-  type: 'info' | 'success' | 'error' | 'warning' | 'agent';
+  type: 'info' | 'success' | 'error' | 'warning' | 'agent' | 'api';
   message: string;
+  agent?: string;
 }
+
+const API_URL = 'http://localhost:5000/api';
 
 function App() {
   const [code, setCode] = useState<string>('');
   const [fileName, setFileName] = useState<string>('sample.py');
   const [loading, setLoading] = useState<boolean>(false);
   const [report, setReport] = useState<ReviewResponse | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('results');
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>('editor');
+  const [logs, setLogs] = useState<LogMessage[]>([]);
+  const [isApiConnected, setIsApiConnected] = useState<boolean>(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
-  const addLog = (message: string, type: LogEntry['type'] = 'info') => {
+  // Add log function
+  const addLog = (message: string, type: LogMessage['type'] = 'info', agent?: string) => {
     setLogs(prev => [...prev, {
       timestamp: new Date().toLocaleTimeString(),
       type,
-      message
+      message,
+      agent
     }]);
   };
 
+  // Auto-scroll logs
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
+  // Check API health on mount
+  useEffect(() => {
+    const checkApi = async () => {
+      try {
+        await axios.get(`${API_URL}/health`);
+        setIsApiConnected(true);
+        addLog('Connected to CodeHolla API Server', 'success');
+        addLog('Waiting for code review request...', 'info');
+      } catch {
+        setIsApiConnected(false);
+        addLog('API Server not responding - Make sure backend is running on port 5000', 'error');
+      }
+    };
+    checkApi();
+  }, []);
+
   const handleReview = async (): Promise<void> => {
     if (!code.trim()) {
-      addLog('Please enter some code to review', 'warning');
+      addLog('Cannot start review: No code provided', 'warning');
       return;
     }
 
     setLoading(true);
-    setLogs([]);
-    addLog('🚀 Starting Code Review Process', 'info');
-    addLog(`📁 File: ${fileName}`, 'info');
-    addLog(`📝 Code size: ${code.length} characters`, 'info');
+    
+    addLog('═══════════════════════════════════════════════════════', 'info');
+    addLog('CODE REVIEW INITIATED', 'agent', 'orchestrator');
+    addLog(`Target file: ${fileName}`, 'info');
+    addLog(`Code size: ${code.length} characters, ${code.split('\n').length} lines`, 'info');
     
     try {
-      addLog('🤖 Calling Coordinator Agent...', 'agent');
-      const response = await api.reviewCode(code, fileName);
+      // Step 1: Coordinator
+      addLog('COORDINATOR AGENT - Analyzing code structure', 'agent', 'coordinator');
       
-      if (response.success) {
-        addLog(`✅ Coordinator Plan: Style=${response.plan.style_review}, Logic=${response.plan.logic_review}, Security=${response.plan.security_review}`, 'success');
+      const response = await axios.post(`${API_URL}/review`, { code, filename: fileName });
+      
+      if (response.data.success) {
+        const data = response.data as ReviewResponse;
         
-        if (response.plan.style_review) {
-          addLog('🎨 Style Reviewer: Analyzing PEP8 compliance...', 'agent');
-        }
-        if (response.plan.logic_review) {
-          addLog('🧠 Logic Reviewer: Checking for bugs and edge cases...', 'agent');
-        }
-        if (response.plan.security_review) {
-          addLog('🔒 Security Reviewer: Scanning for vulnerabilities...', 'agent');
+        addLog(`Review Plan Generated: Style=${data.plan.style_review}, Logic=${data.plan.logic_review}, Security=${data.plan.security_review}`, 'success');
+        
+        // Step 2: Style Reviewer
+        if (data.plan.style_review) {
+          addLog('STYLE REVIEWER AGENT - Checking PEP8 compliance', 'agent', 'style');
+          addLog(`Style analysis complete: ${data.report.findings.filter(f => f.category === 'style').length} issues found`, 'success');
         }
         
-        addLog(`📊 Review Complete! Found ${response.report.summary.total_findings} issues`, 'success');
-        addLog(`📈 Status: ${response.report.overall_status} | Security Risk: ${response.report.summary.security_risk}`, 'info');
+        // Step 3: Logic Reviewer
+        if (data.plan.logic_review) {
+          addLog('LOGIC REVIEWER AGENT - Detecting bugs and edge cases', 'agent', 'logic');
+          addLog(`Logic analysis complete: ${data.report.findings.filter(f => f.category === 'logic').length} issues found`, 'success');
+        } else {
+          addLog('LOGIC REVIEWER AGENT - Skipped (no complex logic detected)', 'info');
+        }
         
-        setReport(response);
+        // Step 4: Security Reviewer
+        if (data.plan.security_review) {
+          addLog('SECURITY REVIEWER AGENT - Scanning vulnerabilities', 'agent', 'security');
+          addLog(`Security analysis complete: ${data.report.findings.filter(f => f.category === 'security').length} vulnerabilities found`, 'success');
+        } else {
+          addLog('SECURITY REVIEWER AGENT - Skipped (no security concerns)', 'info');
+        }
+        
+        // Final summary
+        addLog('═══════════════════════════════════════════════════════', 'success');
+        addLog(`REVIEW COMPLETE: ${data.report.summary.total_findings} total issues found`, 'success');
+        addLog(`Overall Status: ${data.report.overall_status} | Security Risk: ${data.report.summary.security_risk.toUpperCase()}`, 'info');
+        
+        setReport(data);
         setActiveTab('results');
       } else {
-        addLog(`❌ Error: ${response.error}`, 'error');
+        addLog(`Review failed: ${response.data.error}`, 'error');
       }
     } catch (error) {
-      console.error('Review failed:', error);
-      addLog('❌ Failed to connect to backend. Make sure server is running on port 5000', 'error');
+      addLog('Connection failed - Make sure backend is running on port 5000', 'error');
     }
     setLoading(false);
   };
@@ -79,200 +120,173 @@ function App() {
     const file = event.target.files?.[0];
     if (!file) return;
     
-    addLog(`📂 Uploading file: ${file.name}`, 'info');
+    addLog(`Uploading file: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`, 'info');
+    
     const reader = new FileReader();
     reader.onload = (e) => {
       setCode(e.target?.result as string);
       setFileName(file.name);
-      addLog(`✅ File loaded: ${file.name} (${file.size} bytes)`, 'success');
+      addLog(`File loaded: ${file.name}`, 'success');
     };
     reader.readAsText(file);
   };
 
   const clearLogs = () => {
     setLogs([]);
-    addLog('Logs cleared', 'info');
+    addLog('Console cleared', 'info');
   };
 
-  const getLogIcon = (type: string) => {
+  const getLogIcon = (type: string): string => {
     switch(type) {
-      case 'success': return '✅';
-      case 'error': return '❌';
-      case 'warning': return '⚠️';
-      case 'agent': return '🤖';
-      default: return '📌';
+      case 'success': return '✓';
+      case 'error': return '✗';
+      case 'warning': return '!';
+      case 'agent': return '▶';
+      case 'api': return '↻';
+      default: return '○';
     }
   };
 
-  const getLogColor = (type: string) => {
+  const getLogColor = (type: string): string => {
     switch(type) {
-      case 'success': return 'text-green-400';
+      case 'success': return 'text-emerald-400';
       case 'error': return 'text-red-400';
-      case 'warning': return 'text-yellow-400';
-      case 'agent': return 'text-purple-400';
-      default: return 'text-blue-400';
+      case 'warning': return 'text-amber-400';
+      case 'agent': return 'text-blue-400';
+      case 'api': return 'text-purple-400';
+      default: return 'text-gray-400';
     }
   };
 
-  const getSeverityColor = (severity: string): string => {
+  const getSeverityBadge = (severity: string): string => {
     switch(severity) {
-      case 'critical': return 'bg-red-600';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getStatusColor = (status: string): string => {
-    switch(status) {
-      case 'FAIL': return 'bg-red-600';
-      case 'WARNING': return 'bg-yellow-500';
-      case 'PASS': return 'bg-green-500';
-      default: return 'bg-gray-500';
+      case 'critical': return 'bg-red-50 text-red-700 border border-red-200';
+      case 'high': return 'bg-orange-50 text-orange-700 border border-orange-200';
+      case 'medium': return 'bg-yellow-50 text-yellow-700 border border-yellow-200';
+      case 'low': return 'bg-green-50 text-green-700 border border-green-200';
+      default: return 'bg-gray-50 text-gray-700 border border-gray-200';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-      {/* Animated Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
-      </div>
-
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="relative bg-black/40 backdrop-blur-xl border-b border-white/10">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="text-4xl animate-bounce">🤖</div>
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-xl">&lt;/&gt;</span>
+              </div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">CodeHolla</h1>
-                <p className="text-xs text-gray-400">Multi-Agent Code Review Assistant</p>
+                <h1 className="text-xl font-bold tracking-tight text-gray-900">CODEHOLLA</h1>
+                <p className="text-xs text-gray-500 font-mono">Multi-Agent Code Review System</p>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-2">
-              <div className="flex items-center gap-1 px-3 py-1 bg-green-500/20 rounded-full">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-xs text-green-400">Ollama Active</span>
+            
+            <div className="flex items-center gap-4">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${isApiConnected ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
+                <div className={`w-2 h-2 rounded-full ${isApiConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+                <span className={`text-xs font-mono ${isApiConnected ? 'text-emerald-700' : 'text-red-700'}`}>
+                  {isApiConnected ? 'API CONNECTED' : 'API DISCONNECTED'}
+                </span>
               </div>
-              <div className="flex items-center gap-1 px-3 py-1 bg-purple-500/20 rounded-full">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span className="text-xs text-purple-400">4 Agents Ready</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full">
+                <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                <span className="text-xs text-gray-600 font-mono">4 AGENTS ONLINE</span>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="relative container mx-auto px-6 py-6">
-        {/* Split Screen */}
+      <div className="container mx-auto px-6 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition">
+            <div className="flex items-center justify-between">
+              <div><p className="text-gray-500 text-xs font-mono uppercase">Total Reviews</p><p className="text-3xl font-bold text-gray-900 mt-1">{report?.report.summary.total_findings || 0}</p></div>
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center"><span className="text-xl">📊</span></div>
+            </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition">
+            <div className="flex items-center justify-between">
+              <div><p className="text-gray-500 text-xs font-mono uppercase">Style Score</p><p className="text-3xl font-bold text-gray-900 mt-1">{report?.report.summary.style_score || 100}/100</p></div>
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center"><span className="text-xl">🎨</span></div>
+            </div>
+            <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gray-700 rounded-full transition-all" style={{ width: `${report?.report.summary.style_score || 100}%` }}></div></div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition">
+            <div className="flex items-center justify-between">
+              <div><p className="text-gray-500 text-xs font-mono uppercase">Logic Score</p><p className="text-3xl font-bold text-gray-900 mt-1">{report?.report.summary.logic_score || 100}/100</p></div>
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center"><span className="text-xl">🧠</span></div>
+            </div>
+            <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gray-700 rounded-full transition-all" style={{ width: `${report?.report.summary.logic_score || 100}%` }}></div></div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition">
+            <div className="flex items-center justify-between">
+              <div><p className="text-gray-500 text-xs font-mono uppercase">Security Risk</p><p className={`text-xl font-bold mt-1 ${report?.report.summary.security_risk === 'dangerous' ? 'text-red-600' : report?.report.summary.security_risk === 'caution' ? 'text-amber-600' : 'text-emerald-600'}`}>{report?.report.summary.security_risk?.toUpperCase() || 'SAFE'}</p></div>
+              <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center"><span className="text-xl">🔒</span></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Split Screen */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* LEFT SIDE - Code Editor */}
+          {/* LEFT PANEL - Code Editor */}
           <div className="space-y-4">
-            {/* Code Input Card */}
-            <div className="bg-gray-900/80 backdrop-blur-xl rounded-2xl border border-gray-700/50 overflow-hidden shadow-2xl">
-              <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 px-5 py-3 border-b border-gray-700/50">
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="border-b border-gray-200 px-5 py-3 bg-gray-50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-sm text-gray-400 ml-2">editor.py</span>
+                    <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-400"></div><div className="w-3 h-3 rounded-full bg-amber-400"></div><div className="w-3 h-3 rounded-full bg-emerald-400"></div></div>
+                    <span className="text-sm font-mono text-gray-600 ml-2">editor.py</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">{code.length} chars</span>
-                    <span className="text-xs text-gray-500">{code.split('\n').length} lines</span>
-                  </div>
+                  <div className="flex items-center gap-3 text-xs text-gray-400 font-mono"><span>{code.length} chars</span><span>{code.split('\n').length} lines</span></div>
                 </div>
               </div>
               
-              <div className="p-4">
-                <div className="flex gap-3 mb-4 flex-wrap">
-                  <input
-                    type="text"
-                    value={fileName}
-                    onChange={(e) => setFileName(e.target.value)}
-                    className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="filename.py"
-                  />
-                  <label className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl text-sm font-medium cursor-pointer hover:shadow-lg transition-all">
-                    📁 Upload
-                    <input type="file" accept=".py" onChange={handleFileUpload} className="hidden" />
-                  </label>
-                  <button
-                    onClick={handleReview}
-                    disabled={loading}
-                    className="px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl text-sm font-medium hover:shadow-lg transition-all disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <span className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Reviewing...
-                      </span>
-                    ) : (
-                      '🚀 Start Review'
-                    )}
-                  </button>
+              <div className="p-5">
+                <div className="flex gap-3 mb-4">
+                  <input type="text" value={fileName} onChange={(e) => setFileName(e.target.value)} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-gray-500 bg-white" placeholder="filename.py" />
+                  <label className="px-4 py-2.5 bg-white text-gray-900 border border-gray-300 rounded-lg text-sm font-medium cursor-pointer hover:bg-gray-50 transition flex items-center gap-2">📁 Upload<input type="file" accept=".py" onChange={handleFileUpload} className="hidden" /></label>
+                  <button onClick={handleReview} disabled={loading} className="px-6 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition disabled:opacity-50 flex items-center gap-2">{loading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>Analyzing...</> : '▶ Review Code'}</button>
                 </div>
                 
-                <textarea
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder='# Enter your Python code here
-# Example:
-def hello():
-    print("Hello World")
-    
-password = "hardcoded123"
-
-def insecure():
-    eval(user_input)'
-                  className="w-full h-[400px] font-mono text-sm p-4 bg-gray-800 border border-gray-700 rounded-xl text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                />
+                <textarea value={code} onChange={(e) => setCode(e.target.value)} placeholder='# Enter Python code here\n# Example:\ndef authenticate(user, password="admin123"):\n    if user == "admin":\n        return True\n    return False\n\ndef process_input(data):\n    eval(data)\n    return data' className="w-full h-[440px] font-mono text-sm p-5 border border-gray-200 rounded-lg bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-500 resize-none" />
               </div>
             </div>
 
-            {/* Quick Examples */}
+            {/* Quick Templates */}
             <div className="flex gap-2 flex-wrap">
-              <button onClick={() => setCode('# Simple function\ndef add(a, b):\n    return a + b')} className="px-3 py-1 bg-gray-800/50 rounded-lg text-xs text-gray-400 hover:bg-gray-700 transition">Simple</button>
-              <button onClick={() => setCode('def login(username, password="admin123"):\n    if username == "admin":\n        print("Welcome")\n    return True')} className="px-3 py-1 bg-gray-800/50 rounded-lg text-xs text-gray-400 hover:bg-gray-700 transition">With Password</button>
-              <button onClick={() => setCode('import os\n\ndef process(data):\n    eval(data)\n    os.system("rm -rf /")')} className="px-3 py-1 bg-gray-800/50 rounded-lg text-xs text-gray-400 hover:bg-gray-700 transition">Security Issues</button>
-              <button onClick={() => setCode('def complex_logic(x):\n    if x > 10:\n        if x < 20:\n            for i in range(x):\n                print(i)\n        else:\n            return x * 2\n    return x')} className="px-3 py-1 bg-gray-800/50 rounded-lg text-xs text-gray-400 hover:bg-gray-700 transition">Complex Logic</button>
+              <button onClick={() => setCode('# Simple function\ndef add(a, b):\n    return a + b')} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition font-mono">simple.py</button>
+              <button onClick={() => setCode('def login(pwd="admin123"):\n    print(pwd)\n    return True\n\npassword = "secret"')} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition font-mono">security.py</button>
+              <button onClick={() => setCode('def complex(x):\n    if x > 10:\n        for i in range(x):\n            if i % 2 == 0:\n                print(i)\n    return x')} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50 transition font-mono">logic.py</button>
+              <button onClick={() => setCode('')} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-400 hover:bg-gray-50 transition font-mono">clear</button>
             </div>
           </div>
 
-          {/* RIGHT SIDE - Live Logs & Results */}
+          {/* RIGHT PANEL - Live Logs Terminal */}
           <div className="space-y-4">
-            {/* Live Logs Terminal */}
-            <div className="bg-black/90 backdrop-blur-xl rounded-2xl border border-gray-700/50 overflow-hidden shadow-2xl">
-              <div className="bg-gradient-to-r from-gray-800 to-gray-900 px-5 py-3 border-b border-gray-700">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="text-sm font-mono text-gray-400 ml-2">terminal@codeholla:~$</span>
-                  </div>
-                  <button onClick={clearLogs} className="text-xs text-gray-500 hover:text-gray-300 transition">Clear</button>
+            <div className="bg-gray-900 rounded-xl overflow-hidden shadow-lg">
+              <div className="bg-gray-950 px-5 py-3 flex items-center justify-between border-b border-gray-800">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-500"></div><div className="w-3 h-3 rounded-full bg-amber-500"></div><div className="w-3 h-3 rounded-full bg-emerald-500"></div></div>
+                  <span className="text-sm font-mono text-gray-500 ml-2">terminal@codeholla:~$</span>
                 </div>
+                <button onClick={clearLogs} className="text-xs text-gray-500 hover:text-gray-300 transition px-2 py-1 rounded hover:bg-gray-800 font-mono">clear</button>
               </div>
               
-              <div className="h-[300px] overflow-y-auto p-4 font-mono text-sm">
+              <div className="h-[440px] overflow-y-auto p-4 bg-gray-900">
                 {logs.length === 0 ? (
-                  <div className="text-center text-gray-600 py-8">
-                    <div className="text-4xl mb-2">🖥️</div>
-                    <p>Ready for code review</p>
-                    <p className="text-xs mt-2">Enter code and click "Start Review"</p>
-                  </div>
+                  <div className="text-center py-16"><div className="text-5xl mb-4 text-gray-700">◉</div><p className="text-gray-500 font-mono">System Ready</p><p className="text-xs text-gray-700 mt-2 font-mono">Enter code and click "Review Code"</p></div>
                 ) : (
                   logs.map((log, idx) => (
-                    <div key={idx} className="mb-2 flex items-start gap-2 group hover:bg-gray-800/30 rounded px-2 py-1 transition">
-                      <span className="text-gray-600 text-xs shrink-0">[{log.timestamp}]</span>
-                      <span className="shrink-0">{getLogIcon(log.type)}</span>
-                      <span className={`${getLogColor(log.type)} break-all`}>{log.message}</span>
+                    <div key={idx} className="mb-2 flex items-start gap-2 hover:bg-gray-800/50 rounded px-2 py-1 transition font-mono text-xs">
+                      <span className="text-gray-600 shrink-0">[{log.timestamp}]</span>
+                      <span className="text-gray-600 shrink-0">{getLogIcon(log.type)}</span>
+                      <span className={`break-all ${getLogColor(log.type)}`}>{log.agent && <span className="text-gray-600">[{log.agent.toUpperCase()}] </span>}{log.message}</span>
                     </div>
                   ))
                 )}
@@ -280,44 +294,33 @@ def insecure():
               </div>
             </div>
 
-            {/* Results / Plan Tabs */}
+            {/* Results Panel */}
             {report && (
-              <div className="bg-gray-900/80 backdrop-blur-xl rounded-2xl border border-gray-700/50 overflow-hidden">
-                <div className="flex border-b border-gray-700">
-                  <button onClick={() => setActiveTab('results')} className={`flex-1 px-4 py-3 text-sm font-medium transition ${activeTab === 'results' ? 'bg-purple-600/20 text-purple-400 border-b-2 border-purple-500' : 'text-gray-400 hover:text-gray-200'}`}>📊 Results</button>
-                  <button onClick={() => setActiveTab('plan')} className={`flex-1 px-4 py-3 text-sm font-medium transition ${activeTab === 'plan' ? 'bg-purple-600/20 text-purple-400 border-b-2 border-purple-500' : 'text-gray-400 hover:text-gray-200'}`}>🎯 Review Plan</button>
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden animate-fadeIn">
+                <div className="flex border-b border-gray-200">
+                  <button onClick={() => setActiveTab('results')} className={`flex-1 px-5 py-3 text-sm font-mono font-medium transition ${activeTab === 'results' ? 'bg-gray-50 text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>📋 RESULTS</button>
+                  <button onClick={() => setActiveTab('plan')} className={`flex-1 px-5 py-3 text-sm font-mono font-medium transition ${activeTab === 'plan' ? 'bg-gray-50 text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>🎯 PLAN</button>
                 </div>
 
-                <div className="p-4 max-h-[400px] overflow-y-auto">
+                <div className="p-5 max-h-[320px] overflow-y-auto">
                   {activeTab === 'results' && (
-                    <div className="space-y-4">
-                      {/* Status Badge */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-400 text-sm">Overall Status</span>
-                        <span className={`px-3 py-1 rounded-full text-white text-sm font-medium ${getStatusColor(report.report.overall_status)}`}>
-                          {report.report.overall_status}
-                        </span>
+                    <div className="space-y-5">
+                      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                        <span className="text-gray-500 text-xs font-mono uppercase">Overall Status</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-mono font-medium ${report.report.overall_status === 'FAIL' ? 'bg-red-50 text-red-700 border border-red-200' : report.report.overall_status === 'WARNING' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>{report.report.overall_status}</span>
                       </div>
                       
-                      {/* Scores */}
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="text-center p-2 bg-gray-800 rounded-lg"><div className="text-xs text-gray-400">Style</div><div className="text-xl font-bold text-purple-400">{report.report.summary.style_score}</div></div>
-                        <div className="text-center p-2 bg-gray-800 rounded-lg"><div className="text-xs text-gray-400">Logic</div><div className="text-xl font-bold text-blue-400">{report.report.summary.logic_score}</div></div>
-                        <div className="text-center p-2 bg-gray-800 rounded-lg"><div className="text-xs text-gray-400">Security Risk</div><div className={`text-sm font-bold ${report.report.summary.security_risk === 'dangerous' ? 'text-red-400' : report.report.summary.security_risk === 'caution' ? 'text-yellow-400' : 'text-green-400'}`}>{report.report.summary.security_risk.toUpperCase()}</div></div>
-                      </div>
+                      <div><h4 className="text-xs font-mono text-gray-500 mb-3 uppercase">Quality Metrics</h4><div className="space-y-3"><div><div className="flex justify-between text-xs mb-1"><span className="text-gray-600">Style Compliance</span><span className="font-mono font-bold">{report.report.summary.style_score}%</span></div><div className="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gray-700 rounded-full" style={{ width: `${report.report.summary.style_score}%` }}></div></div></div><div><div className="flex justify-between text-xs mb-1"><span className="text-gray-600">Logic Correctness</span><span className="font-mono font-bold">{report.report.summary.logic_score}%</span></div><div className="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-gray-700 rounded-full" style={{ width: `${report.report.summary.logic_score}%` }}></div></div></div></div></div>
                       
-                      {/* Findings */}
-                      {report.report.findings.length > 0 ? (
-                        <div><h3 className="text-sm font-semibold text-gray-300 mb-2">🔍 Findings ({report.report.findings.length})</h3>{report.report.findings.slice(0, 5).map((finding, idx) => (<div key={idx} className="mb-2 p-2 bg-gray-800/50 rounded-lg"><div className="flex gap-2 mb-1 flex-wrap"><span className={`text-xs px-2 py-0.5 rounded-full text-white ${getSeverityColor(finding.severity)}`}>{finding.severity}</span><span className="text-xs text-gray-500">Line {finding.line}</span></div><p className="text-xs text-gray-300">{finding.message.slice(0, 100)}</p></div>))}</div>
-                      ) : (<div className="text-center py-4 text-gray-500">✅ No issues found!</div>)}
+                      {report.report.findings.length > 0 && (<div><h4 className="text-xs font-mono text-gray-500 mb-3 uppercase">Findings ({report.report.findings.length})</h4><div className="space-y-2">{report.report.findings.slice(0, 4).map((finding, idx) => (<div key={idx} className="p-3 bg-gray-50 rounded-lg border-l-2 border-l-gray-700"><div className="flex gap-2 mb-2 flex-wrap"><span className={`text-xs px-2 py-0.5 rounded-full font-mono ${getSeverityBadge(finding.severity)}`}>{finding.severity.toUpperCase()}</span><span className="text-xs text-gray-500 font-mono">Line {finding.line}</span></div><p className="text-sm text-gray-700 mb-2">{finding.message}</p><p className="text-xs text-gray-500 font-mono">💡 {finding.suggestion}</p></div>))}</div></div>)}
                     </div>
                   )}
 
                   {activeTab === 'plan' && (
                     <div className="space-y-3">
-                      <div className={`p-3 rounded-lg ${report.plan.style_review ? 'bg-green-500/10 border border-green-500/30' : 'bg-gray-800'}`}><div className="flex items-center gap-2"><span className="text-2xl">🎨</span><div><div className="font-semibold">Style Reviewer</div><div className="text-xs text-gray-400">{report.plan.style_review ? '✅ Enabled - Checking PEP8 compliance' : '❌ Disabled'}</div></div></div></div>
-                      <div className={`p-3 rounded-lg ${report.plan.logic_review ? 'bg-green-500/10 border border-green-500/30' : 'bg-gray-800'}`}><div className="flex items-center gap-2"><span className="text-2xl">🧠</span><div><div className="font-semibold">Logic Reviewer</div><div className="text-xs text-gray-400">{report.plan.logic_review ? '✅ Enabled - Analyzing complex logic' : '❌ Disabled - No complex logic detected'}</div></div></div></div>
-                      <div className={`p-3 rounded-lg ${report.plan.security_review ? 'bg-green-500/10 border border-green-500/30' : 'bg-gray-800'}`}><div className="flex items-center gap-2"><span className="text-2xl">🔒</span><div><div className="font-semibold">Security Reviewer</div><div className="text-xs text-gray-400">{report.plan.security_review ? '✅ Enabled - Scanning for vulnerabilities' : '❌ Disabled - No security concerns'}</div></div></div></div>
+                      <div className={`p-4 rounded-lg border ${report.plan.style_review ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-gray-50'}`}><div className="flex items-center gap-3"><span className="text-2xl">🎨</span><div><div className="font-mono font-semibold">STYLE REVIEWER</div><div className="text-xs text-gray-600 font-mono">{report.plan.style_review ? 'ENABLED - PEP8 compliance' : 'DISABLED'}</div></div></div></div>
+                      <div className={`p-4 rounded-lg border ${report.plan.logic_review ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-gray-50'}`}><div className="flex items-center gap-3"><span className="text-2xl">🧠</span><div><div className="font-mono font-semibold">LOGIC REVIEWER</div><div className="text-xs text-gray-600 font-mono">{report.plan.logic_review ? 'ENABLED - Bug detection' : 'DISABLED - No complex logic'}</div></div></div></div>
+                      <div className={`p-4 rounded-lg border ${report.plan.security_review ? 'border-emerald-200 bg-emerald-50' : 'border-gray-200 bg-gray-50'}`}><div className="flex items-center gap-3"><span className="text-2xl">🔒</span><div><div className="font-mono font-semibold">SECURITY REVIEWER</div><div className="text-xs text-gray-600 font-mono">{report.plan.security_review ? 'ENABLED - Vulnerability scan' : 'DISABLED - No security concerns'}</div></div></div></div>
                     </div>
                   )}
                 </div>
@@ -327,9 +330,9 @@ def insecure():
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="relative mt-8 py-4 text-center border-t border-white/10">
-        <p className="text-gray-500 text-xs">CodeHolla | Multi-Agent System | Coordinator-Worker-Delegator | Ollama LLM</p>
+      <footer className="mt-12 py-6 text-center border-t border-gray-200 bg-white">
+        <p className="text-gray-400 text-xs font-mono uppercase">CODEHOLLA • MULTI-AGENT SYSTEM • CWD ARCHITECTURE • OLLAMA LLM</p>
+        <p className="text-gray-300 text-xs mt-1 font-mono">LOCAL EXECUTION • ZERO CLOUD COSTS</p>
       </footer>
     </div>
   );
