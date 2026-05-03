@@ -1,4 +1,4 @@
-"""Global state management for the Multi-Agent System"""
+﻿"""Global state management for the Multi-Agent System"""
 
 from typing import TypedDict, List, Dict, Any, Optional, Annotated
 from operator import add
@@ -43,7 +43,7 @@ class CodeReviewState(TypedDict):
 def create_initial_state(filename: str, code_content: str) -> CodeReviewState:
     """Create initial state for a code review session"""
     # Debug print
-    print(f"   🔍 create_initial_state called with:")
+    print(f"   [SCAN] create_initial_state called with:")
     print(f"      filename: {filename}")
     print(f"      code_content length: {len(code_content) if code_content else 0}")
     if code_content:

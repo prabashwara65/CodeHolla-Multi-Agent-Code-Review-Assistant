@@ -1,4 +1,4 @@
-"""Base Agent - Abstract foundation for all specialized agents"""
+﻿"""Base Agent - Abstract foundation for all specialized agents"""
 
 from typing import Dict, Any
 from langchain_ollama import ChatOllama
@@ -45,13 +45,13 @@ class BaseAgent(ABC):
         
         try:
             start_time = time.time()
-            print(f"   🤖 Calling Ollama... (this takes 10-30 seconds)")
+            print(f"   [AGENT] Calling Ollama... (this takes 10-30 seconds)")
             response = self.llm.invoke(messages)
             elapsed = time.time() - start_time
-            print(f"   ✅ Response received in {elapsed:.1f} seconds")
+            print(f"   [OK] Response received in {elapsed:.1f} seconds")
             return response.content
         except Exception as e:
-            print(f"   ❌ LLM call failed: {e}")
+            print(f"   [ERROR] LLM call failed: {e}")
             return '{"findings": []}'
     
     def _parse_json(self, response: str) -> Dict[str, Any]:

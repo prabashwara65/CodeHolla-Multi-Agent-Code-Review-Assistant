@@ -1,4 +1,4 @@
-"""Logic Reviewer Agent - Student C"""
+﻿"""Logic Reviewer Agent - Student C"""
 
 from typing import Dict, Any
 from src.agents.base_agent import BaseAgent
@@ -23,12 +23,12 @@ class LogicReviewerAgent(BaseAgent):
         findings = []
         
         print(f"\n{'='*60}")
-        print(f"🧠 LOGIC REVIEWER AGENT")
+        print(f"[LOGIC] LOGIC REVIEWER AGENT")
         print(f"   Code length in state: {len(code)} characters")
         print(f"{'='*60}")
         
         if code and len(code) > 50:
-            print(f"   🤖 Calling Ollama for logic analysis...")
+            print(f"   [AGENT] Calling Ollama for logic analysis...")
             
             user_message = f"Find bugs and logical errors in this Python code:\n\n{code[:1500]}"
             
@@ -45,9 +45,9 @@ class LogicReviewerAgent(BaseAgent):
                 if "line" not in f:
                     f["line"] = 0
             
-            print(f"   📊 Found {len(findings)} logic issues")
+            print(f"   [DATA] Found {len(findings)} logic issues")
         else:
-            print(f"   ⚠️ No code in state! Length: {len(code)}")
+            print(f"   [WARN] No code in state! Length: {len(code)}")
         
         result = {
             "findings": findings,

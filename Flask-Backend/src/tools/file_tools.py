@@ -1,4 +1,4 @@
-"""File system tools for Coordinator Agent"""
+﻿"""File system tools for Coordinator Agent"""
 
 from pathlib import Path
 import ast
@@ -14,7 +14,7 @@ class FileSystemTools:
         """
         path = Path(filepath)
         
-        print(f"   🔍 Reading file: {filepath}")
+        print(f"   [SCAN] Reading file: {filepath}")
         
         if not path.exists():
             return {"error": f"File {filepath} not found"}
@@ -25,8 +25,8 @@ class FileSystemTools:
         with open(path, 'r', encoding='utf-8-sig') as f:
             content = f.read()
         
-        print(f"   ✅ Read {len(content)} characters")
-        print(f"   ✅ First 50 chars: {content[:50]}")
+        print(f"   [OK] Read {len(content)} characters")
+        print(f"   [OK] First 50 chars: {content[:50]}")
         
         # Check syntax validity
         valid_syntax = True
@@ -70,3 +70,4 @@ class FileSystemTools:
             "saved_to": str(path),
             "size_bytes": path.stat().st_size
         }
+

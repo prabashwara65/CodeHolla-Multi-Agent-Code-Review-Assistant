@@ -1,4 +1,4 @@
-"""Complete Multi-Agent Code Review Assistant"""
+﻿"""Complete Multi-Agent Code Review Assistant"""
 
 import sys
 import time
@@ -26,7 +26,7 @@ def main():
         sys.exit(1)
     
     filename = sys.argv[1]
-    print(f"\n📁 Input file: {filename}")
+    print(f"\n[FILE] Input file: {filename}")
     
     # Step 1: Read file
     print("\n[STEP 1] Reading source code...")
@@ -34,11 +34,11 @@ def main():
     file_info = file_tools.read_python_file(filename)
     
     if "error" in file_info:
-        print(f"❌ Error: {file_info['error']}")
+        print(f"[ERROR] Error: {file_info['error']}")
         sys.exit(1)
     
-    print(f"   ✅ Lines: {file_info['line_count']}")
-    print(f"   ✅ Size: {len(file_info['content'])} chars")
+    print(f"   [OK] Lines: {file_info['line_count']}")
+    print(f"   [OK] Size: {len(file_info['content'])} chars")
     
     # Step 2: Create state
     state = create_initial_state(filename, file_info['content'])
@@ -78,23 +78,23 @@ def main():
     print("\n" + "=" * 70)
     print(" REVIEW SUMMARY")
     print("=" * 70)
-    print(f"\n📄 File: {report['filename']}")
-    print(f"📊 Status: {report['overall_status']}")
-    print(f"\n📈 Scores:")
+    print(f"\n[FILE] File: {report['filename']}")
+    print(f"[DATA] Status: {report['overall_status']}")
+    print(f"\n[SCORES] Scores:")
     print(f"   Style:  {report['summary']['style_score']}/100")
     print(f"   Logic:  {report['summary']['logic_score']}/100")
     print(f"   Security Risk: {report['summary']['security_risk']}")
-    print(f"\n🔍 Total Findings: {report['summary']['total_findings']}")
-    print(f"⚠️  High Severity: {report['summary']['high_severity_count']}")
+    print(f"\n[SCAN] Total Findings: {report['summary']['total_findings']}")
+    print(f"[WARN]  High Severity: {report['summary']['high_severity_count']}")
     
     if report['recommendations']:
-        print(f"\n💡 Recommendations:")
+        print(f"\n[TIP] Recommendations:")
         for rec in report['recommendations']:
-            print(f"   • {rec}")
+            print(f"   - {rec}")
     
-    print(f"\n📁 Report saved: {output_path}")
-    print(f"📁 Logs saved: logs/")
-    print(f"\n⏱️  Total time: {total_time:.1f} seconds")
+    print(f"\n[FILE] Report saved: {output_path}")
+    print(f"[FILE] Logs saved: logs/")
+    print(f"\n[TIME]  Total time: {total_time:.1f} seconds")
     print("\n" + "=" * 70)
     print(" REVIEW COMPLETED")
     print("=" * 70)

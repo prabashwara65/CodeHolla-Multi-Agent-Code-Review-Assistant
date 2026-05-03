@@ -1,4 +1,4 @@
-"""Coordinator Agent - Student A
+﻿"""Coordinator Agent - Student A
 Responsible for analyzing code and creating an intelligent review plan
 Follows the Coordinator-Worker-Delegator (CWD) model
 """
@@ -93,7 +93,7 @@ Analyze carefully and be specific in your reasoning."""
         filename = state.get("filename", "unknown")
         
         print(f"\n{'='*70}")
-        print(f"🤖 COORDINATOR AGENT - Analyzing Code")
+        print(f"[AGENT] COORDINATOR AGENT - Analyzing Code")
         print(f"{'='*70}")
         print(f"   File: {filename}")
         print(f"   Code size: {len(code)} characters")
@@ -112,8 +112,8 @@ Analyze carefully and be specific in your reasoning."""
         
         # Only use LLM if code is substantial
         if code and len(code) > 50:
-            print(f"\n   🧠 Analyzing code with Ollama...")
-            print(f"   ⏱️  This may take 15-30 seconds...")
+            print(f"\n   [LOGIC] Analyzing code with Ollama...")
+            print(f"   [TIME]  This may take 15-30 seconds...")
             
             # Create prompt for LLM (fixed f-string)
             user_message = "Analyze this Python code and create a review plan:\n\n```python\n" + code[:2000] + "\n```\n\nReturn ONLY JSON with style_review, logic_review, security_review, and reasoning."
@@ -122,7 +122,7 @@ Analyze carefully and be specific in your reasoning."""
                 # Call LLM
                 response = self._call_llm(self.SYSTEM_PROMPT, user_message)
                 
-                print(f"\n   📥 Raw LLM Response:")
+                print(f"\n   [LLM] Raw LLM Response:")
                 print(f"   {response[:300]}...")
                 
                 # Parse JSON response
@@ -135,17 +135,17 @@ Analyze carefully and be specific in your reasoning."""
                         "security_review": parsed.get("security_review", False),
                         "reasoning": parsed.get("reasoning", "LLM analysis completed")
                     }
-                    print(f"\n   ✅ Successfully parsed LLM response")
+                    print(f"\n   [OK] Successfully parsed LLM response")
                 else:
-                    print(f"\n   ⚠️ LLM response parsing failed, using fallback rules")
+                    print(f"\n   [WARN] LLM response parsing failed, using fallback rules")
                     plan = self._fallback_analysis(code)
                     
             except Exception as e:
-                print(f"\n   ❌ LLM call failed: {e}")
-                print(f"   🔄 Using fallback rule-based analysis")
+                print(f"\n   [ERROR] LLM call failed: {e}")
+                print(f"   [FALLBACK] Using fallback rule-based analysis")
                 plan = self._fallback_analysis(code)
         else:
-            print(f"\n   ⚠️ Code too short ({len(code)} chars), using fallback analysis")
+            print(f"\n   [WARN] Code too short ({len(code)} chars), using fallback analysis")
             plan = self._fallback_analysis(code)
         
         # Ensure all required keys exist
@@ -158,12 +158,12 @@ Analyze carefully and be specific in your reasoning."""
         
         # Display the plan
         print(f"\n{'='*70}")
-        print(f"📋 COORDINATOR REVIEW PLAN")
+        print(f"[PLAN] COORDINATOR REVIEW PLAN")
         print(f"{'='*70}")
-        print(f"   Style Review:   {'✅ ENABLED' if final_plan['style_review'] else '❌ DISABLED'}")
-        print(f"   Logic Review:   {'✅ ENABLED' if final_plan['logic_review'] else '❌ DISABLED'}")
-        print(f"   Security Review: {'✅ ENABLED' if final_plan['security_review'] else '❌ DISABLED'}")
-        print(f"\n   📝 Reasoning: {final_plan['reasoning'][:200]}")
+        print(f"   Style Review:   {'[OK] ENABLED' if final_plan['style_review'] else '[ERROR] DISABLED'}")
+        print(f"   Logic Review:   {'[OK] ENABLED' if final_plan['logic_review'] else '[ERROR] DISABLED'}")
+        print(f"   Security Review: {'[OK] ENABLED' if final_plan['security_review'] else '[ERROR] DISABLED'}")
+        print(f"\n   [API] Reasoning: {final_plan['reasoning'][:200]}")
         print(f"{'='*70}")
         
         # Prepare result with preserved state
@@ -197,7 +197,7 @@ Analyze carefully and be specific in your reasoning."""
         Returns:
             Dictionary with review decisions
         """
-        print(f"\n   🔍 Running fallback rule-based analysis...")
+        print(f"\n   [SCAN] Running fallback rule-based analysis...")
         
         lines = code.split('\n')
         code_lower = code.lower()
@@ -260,7 +260,7 @@ Analyze carefully and be specific in your reasoning."""
         
         reasoning = ". ".join(reasoning_parts)
         
-        print(f"   📊 Rule-based analysis complete:")
+        print(f"   [DATA] Rule-based analysis complete:")
         print(f"      - Logic indicators found: {sum(logic_indicators)}")
         print(f"      - Security indicators found: {sum(security_indicators)}")
         

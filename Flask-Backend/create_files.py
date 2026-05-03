@@ -1,4 +1,4 @@
-# create_files.py - Run this to create all project files
+﻿# create_files.py - Run this to create all project files
 
 import os
 
@@ -135,7 +135,7 @@ from src.tools.file_tools import FileSystemTools
 
 def main():
     print("=" * 60)
-    print("🤖 Multi-Agent Code Review Assistant")
+    print("[AGENT] Multi-Agent Code Review Assistant")
     print("=" * 60)
     
     if len(sys.argv) < 2:
@@ -143,19 +143,19 @@ def main():
         sys.exit(1)
     
     filename = sys.argv[1]
-    print(f"\\n📁 Reviewing file: {filename}")
+    print(f"\\n[FILE] Reviewing file: {filename}")
     
     file_tools = FileSystemTools()
     file_info = file_tools.read_python_file(filename)
     
     if "error" in file_info:
-        print(f"❌ Error: {file_info['error']}")
+        print(f"[ERROR] Error: {file_info['error']}")
         sys.exit(1)
     
-    print(f"📊 Lines of code: {file_info['line_count']}")
+    print(f"[DATA] Lines of code: {file_info['line_count']}")
     state = create_initial_state(filename, file_info['content'])
-    print(f"\\n✅ Review session started: {mas_logger.session_id}")
-    print(f"💾 Logs saved to: logs/")
+    print(f"\\n[OK] Review session started: {mas_logger.session_id}")
+    print(f"[LOGS] Logs saved to: logs/")
 
 if __name__ == "__main__":
     main()
@@ -200,5 +200,5 @@ def insecure():
     return True
 ''')
 
-print("✅ All files created successfully!")
+print("[OK] All files created successfully!")
 print("Run: python main.py sample_code/test.py")

@@ -1,4 +1,4 @@
-"""Flask API for CodeMAS Reviewer"""
+﻿"""Flask API for CodeMAS Reviewer"""
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -126,9 +126,10 @@ def review_file():
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("🚀 CodeMAS API Server")
+    print("[SERVER] CodeMAS API Server")
     print("=" * 50)
-    print("📍 Running on: http://localhost:5000")
-    print("📝 Endpoints: POST /api/review, POST /api/review-file")
+    print("[URL] Running on: http://localhost:5000")
+    print("[API] Endpoints: POST /api/review, POST /api/review-file")
     print("=" * 50)
     app.run(debug=True, port=5000)
+
