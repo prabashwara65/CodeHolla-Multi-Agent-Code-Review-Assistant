@@ -57,6 +57,8 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+pytest-cache-files-*/
+.pytest_tmp/
 cover/
 
 # Jupyter Notebook

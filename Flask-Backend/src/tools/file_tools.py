@@ -22,7 +22,7 @@ class FileSystemTools:
         if path.suffix != '.py':
             return {"error": f"File {filepath} is not a Python file"}
         
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, 'r', encoding='utf-8-sig') as f:
             content = f.read()
         
         print(f"   ✅ Read {len(content)} characters")

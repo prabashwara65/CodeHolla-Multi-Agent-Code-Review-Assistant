@@ -37,5 +37,7 @@ export interface ReviewResponse {
   report: Report;
   plan: ReviewPlan;
   session_id: string;
+  report_path?: string;
+  execution_log?: string[];
   error?: string;
 }

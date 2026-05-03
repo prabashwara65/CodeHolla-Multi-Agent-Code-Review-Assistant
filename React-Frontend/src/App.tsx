@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import type { ReviewResponse, Finding } from './types';
+import type { ReviewResponse } from './types';
 
 type TabType = 'editor' | 'results' | 'plan';
 
@@ -104,6 +104,9 @@ function App() {
         addLog('═══════════════════════════════════════════════════════', 'success');
         addLog(`REVIEW COMPLETE: ${data.report.summary.total_findings} total issues found`, 'success');
         addLog(`Overall Status: ${data.report.overall_status} | Security Risk: ${data.report.summary.security_risk.toUpperCase()}`, 'info');
+        if (data.report_path) {
+          addLog(`Report saved: ${data.report_path}`, 'success');
+        }
         
         setReport(data);
         setActiveTab('results');
